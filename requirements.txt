@@ -1,0 +1,10 @@
+streamlit
+torch
+onnxruntime
+Pillow
+pandas
+numpy
+plotly
+groq
+youtube-search
+python-dotenv
