@@ -29,10 +29,43 @@ def main():
     if "video_data" not in st.session_state:
         st.session_state.video_data = None
 
+    # Model Information Metadata
+    MODEL_INFO = {
+        "lenet64": {
+            "description": "LeNet64 is a classic LeNet architecture adapted for 64x64 RGB images. It uses two convolutional layers followed by average pooling and three fully connected layers.",
+            "accuracy": "76.14%",
+            "parameters": "1.2M",
+            "size": "1.3 MB",
+            "training_images": "1000",
+            "inference_time": "15ms",
+            "plot": "images/lenet.png"
+        },
+        "tinyvgg": {
+            "description": "TinyVGG is a lightweight VGG-inspired convolutional network. It consists of multiple convolutional blocks with max pooling and dropout for regularization.",
+            "accuracy": "89.5%",
+            "parameters": "5.1M",
+            "size": "5.1 MB",
+            "training_images": "1000",
+            "inference_time": "25ms",
+            "plot": "images/tinyvgg.png"
+        },
+        "resnet18": {
+            "description": "ResNet-18 is a convolutional neural network that is 18 layers deep. It is known for its residual learning framework to ease the training of networks that are substantially deeper.",
+            "accuracy": "94.8%",
+            "parameters": "11.2M",
+            "size": "44.7 MB",
+            "training_images": "1000 (Transfer Learning)",
+            "inference_time": "45ms",
+            "plot": "images/resnet.png"
+        }
+    }
+
     # Sidebar
     with st.sidebar:
         st.header("Configuration")
         selected_model = st.selectbox("Select Model", MODELS)
+        
+        st.divider()
         uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
         analyze_button = st.button("Analyze Image", type="primary")
 
@@ -46,13 +79,11 @@ def main():
         st.session_state.show_nutrients = False
 
     # Main Layout
-    col1, col2 = st.columns([1, 1])
-
+    # Image/Results section
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
-        with col1:
-            st.subheader("Uploaded Image")
-            st.image(image, use_container_width=True)
+        st.subheader("Uploaded Image")
+        st.image(image, use_container_width=True)
 
         if analyze_button:
             with st.spinner("Analyzing..."):
@@ -76,32 +107,33 @@ def main():
 
         # Display results from session state
         if st.session_state.prediction:
-            with col2:
+            st.divider()
+            res_col1, res_col2 = st.columns([1, 1])
+            with res_col1:
                 st.subheader("Results")
                 st.markdown(f"### Predicted: **{st.session_state.prediction.title()}**")
                 st.metric(label="Confidence", value=f"{st.session_state.confidence:.2%}")
-
-            # Elements moved outside the column view
-            st.divider()
             
-            # Prediction Probabilities (Pie Chart)
-            probs_df = pd.DataFrame({
-                "Class": settings.CLASS_NAMES,
-                "Probability": st.session_state.probabilities
-            })
-            
-            fig = px.pie(
-                probs_df, 
-                values="Probability", 
-                names="Class", 
-                title="Class Probabilities",
-                hole=0.4,
-                color_discrete_sequence=px.colors.sequential.RdBu
-            )
-            fig.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig, use_container_width=True)
+            with res_col2:
+                # Prediction Probabilities (Pie Chart)
+                probs_df = pd.DataFrame({
+                    "Class": settings.CLASS_NAMES,
+                    "Probability": st.session_state.probabilities
+                })
+                
+                fig = px.pie(
+                    probs_df, 
+                    values="Probability", 
+                    names="Class", 
+                    title="Class Probabilities",
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.sequential.RdBu,
+                    height=300
+                )
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig, use_container_width=True)
 
-            # Display Nutritional Information
+            # Nutrients and Video
             st.divider()
             st.subheader("Nutritional Information (per 100g)")
             
@@ -132,8 +164,32 @@ def main():
                 else:
                     st.warning(f"No nutritional data available for {st.session_state.prediction}.")
     else:
-        with col1:
-            st.info("Please upload an image to start.")
+        st.info("Please upload an image to start.")
+
+    # Model Specifications section (now at the bottom)
+    st.divider()
+    st.header("Model Specifications")
+    info = MODEL_INFO[selected_model]
+    
+    st.info(f"**Description:** {info['description']}")
+    
+    # Metrics in columns
+    m_col1, m_col2 = st.columns(2)
+    with m_col1:
+        st.metric("Accuracy", info['accuracy'])
+        st.metric("Parameters", info['parameters'])
+        st.metric("Model Size", info['size'])
+    with m_col2:
+        st.metric("Train Images", info['training_images'])
+        st.metric("Inference Time", info['inference_time'])
+        
+    st.divider()
+    st.subheader("Training vs Testing Plot")
+    try:
+        plot_image = Image.open(info['plot'])
+        st.image(plot_image, use_container_width=True)
+    except Exception as e:
+        st.warning(f"Could not load plot for {selected_model}")
 
 if __name__ == "__main__":
     main()
